@@ -354,10 +354,14 @@ body {
   margin-top: 0.15rem;
 }
 
+.prize-card__value--retry,
 .prize-card--retry .prize-card__value {
   color: var(--text-muted);
-  font-weight: 600;
-  font-size: 0.58rem;
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.25;
 }
 
 .prize-card--retry .prize-card__img-wrap {
@@ -478,6 +482,15 @@ body {
   font-size: 0.7rem;
   color: var(--text-faint);
   margin-top: 0.85rem;
+  line-height: 1.45;
+  padding: 0 0.5rem;
+  transition: color 0.2s ease;
+}
+
+.spin-disclaimer.is-promo {
+  color: var(--gold);
+  font-weight: 600;
+  font-size: 0.72rem;
 }
 
 /* Footer */
@@ -627,10 +640,107 @@ body {
   margin: 0.35rem 0 1rem;
 }
 
-.modal-retry-msg {
-  color: var(--text-muted);
-  font-size: 0.9rem;
+.modal-view[hidden] {
+  display: none !important;
+}
+
+.modal--retry {
+  padding: 1.5rem 1.35rem 1.35rem;
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.modal-retry-view {
+  text-align: center;
+}
+
+.retry-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.85rem;
+  margin-bottom: 1.1rem;
+  border-radius: 999px;
+  background: #2a2a2a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #9ca3af;
+  text-transform: uppercase;
+}
+
+.retry-chevron {
+  color: #f97316;
+  font-size: 0.55rem;
+  line-height: 1;
+}
+
+.retry-heading {
+  font-size: clamp(1.15rem, 4.5vw, 1.35rem);
+  font-weight: 800;
+  color: var(--gold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.25;
   margin-bottom: 1rem;
+}
+
+.retry-heart {
+  display: inline-block;
+  font-size: 0.95em;
+  vertical-align: middle;
+}
+
+.retry-elon {
+  font-size: 0.88rem;
+  color: #e5e7eb;
+  line-height: 1.55;
+  margin-bottom: 1.35rem;
+  padding: 0 0.25rem;
+}
+
+.retry-quote {
+  display: block;
+  margin-top: 0.35rem;
+  color: #fff;
+  font-style: italic;
+}
+
+.retry-spin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 280px;
+  padding: 0.95rem 1.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2e2e2e 0%, #1f1f1f 100%);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.retry-spin-btn:hover {
+  transform: scale(1.02);
+  background: linear-gradient(180deg, #3a3a3a 0%, #262626 100%);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.retry-spin-btn__icon {
+  font-size: 1rem;
+  opacity: 0.85;
+}
+
+#modal-retry-win-btn {
+  margin-top: 0.65rem;
 }
 
 .modal-code-block {
@@ -660,16 +770,6 @@ body {
 .btn-claim {
   width: 100%;
   text-decoration: none;
-}
-
-.confetti-canvas {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  z-index: 200;
-  display: none;
 }
 
 @media (max-width: 640px) {

@@ -1,8 +1,8 @@
 /**
  * Elon Musk RewardRush — Spin to Win
- * Set your WhatsApp number (country code, no + or spaces), e.g. "15551234567"
+ * WhatsApp number: set in config.js (see config.example.js)
  */
-const WHATSAPP_NUMBER = "12268457134";
+const WHATSAPP_NUMBER = window.APP_CONFIG?.WHATSAPP_NUMBER?.trim() || "";
 const BRAND_NAME = "Elon Musk RewardRush";
 const STORAGE_KEY = "emrr_win";
 
@@ -51,11 +51,23 @@ const PRIZES = [
   },
 ];
 
+/** ~20% chance the wheel lands on Try Again */
+const RETRY_CHANCE = 0.2;
+
+const SPIN_NOW_LABEL = "SPIN NOW";
+const DISCLAIMER_DEFAULT = "Free to play · No purchase required";
+const DISCLAIMER_AFTER_SPIN =
+  "Spin again! Elon has more Teslas to give away!";
+
 const spinGrid = document.getElementById("spin-grid");
 const btnSpin = document.getElementById("btn-spin");
+const spinDisclaimer = document.getElementById("spin-disclaimer");
 const btnScrollSpin = document.getElementById("btn-scroll-spin");
 const modalOverlay = document.getElementById("modal-overlay");
+const modalDialog = document.getElementById("modal-dialog");
 const modalClose = document.getElementById("modal-close");
+const modalWinView = document.getElementById("modal-win-view");
+const modalRetryView = document.getElementById("modal-retry-view");
 const modalCongrats = document.getElementById("modal-congrats");
 const modalImg = document.getElementById("modal-img");
 const modalTitle = document.getElementById("modal-title");
@@ -63,14 +75,15 @@ const modalValue = document.getElementById("modal-value");
 const modalCode = document.getElementById("modal-code");
 const modalCodeBlock = document.getElementById("modal-code-block");
 const modalClaim = document.getElementById("modal-claim");
-const modalRetryMsg = document.getElementById("modal-retry-msg");
 const modalRetryBtn = document.getElementById("modal-retry-btn");
+const modalRetryWinBtn = document.getElementById("modal-retry-win-btn");
 const modalSignature = document.getElementById("modal-signature");
 
 let isSpinning = false;
 let spinCells = [];
 let hasSpunOnce = false;
-let confettiFrame = null;
+let lastSpinWasRetry = false;
+let confettiInterval = null;
 
 function animateCounter(element, target, suffix = "") {
   let current = 0;
@@ -101,6 +114,12 @@ function animateMoney(element, target) {
 }
 
 window.addEventListener("load", () => {
+  if (!WHATSAPP_NUMBER) {
+    console.warn(
+      "[RewardRush] Missing WHATSAPP_NUMBER. Copy config.example.js to config.js and set your number."
+    );
+  }
+
   const winnerCount = document.getElementById("winnerCount");
   const verifiedCount = document.getElementById("verifiedCount");
   const prizeCount = document.getElementById("prizeCount");
@@ -117,20 +136,33 @@ function setSpinBtnLabel(text, spinning = false) {
   btnSpin.classList.toggle("is-spinning", spinning);
 }
 
-function resetSpinBtnAfterModal() {
+function updateSpinDisclaimer() {
+  if (!spinDisclaimer) return;
+
+  if (hasSpunOnce) {
+    spinDisclaimer.textContent = DISCLAIMER_AFTER_SPIN;
+    spinDisclaimer.classList.add("is-promo");
+  } else {
+    spinDisclaimer.textContent = DISCLAIMER_DEFAULT;
+    spinDisclaimer.classList.remove("is-promo");
+  }
+}
+
+function updateMainSpinButton() {
   if (isSpinning) return;
 
-  const saved = loadWin();
-  if (saved) {
-    btnSpin.disabled = true;
-    setSpinBtnLabel("Prize claimed — check WhatsApp");
-    return;
-  }
-
   btnSpin.disabled = false;
-  setSpinBtnLabel(
-    hasSpunOnce ? "Spin again! Elon has more to give away!" : "SPIN NOW"
-  );
+  setSpinBtnLabel(SPIN_NOW_LABEL);
+}
+
+function markFirstSpinComplete() {
+  if (hasSpunOnce) return;
+  hasSpunOnce = true;
+  updateSpinDisclaimer();
+}
+
+function clearWin() {
+  localStorage.removeItem(STORAGE_KEY);
 }
 
 function createPrizeCard(prize, forSpin = false) {
@@ -168,15 +200,13 @@ function createPrizeCard(prize, forSpin = false) {
   const name = document.createElement("p");
   name.className = "prize-card__name";
   name.textContent = prize.name;
-
   footer.appendChild(name);
 
-  if (!prize.isRetry) {
-    const value = document.createElement("p");
-    value.className = "prize-card__value";
-    value.textContent = prize.value;
-    footer.appendChild(value);
-  }
+  const value = document.createElement("p");
+  value.className =
+    "prize-card__value" + (prize.isRetry ? " prize-card__value--retry" : "");
+  value.textContent = prize.value;
+  footer.appendChild(value);
 
   card.appendChild(imgWrap);
   card.appendChild(footer);
@@ -211,7 +241,8 @@ function buildWhatsAppUrl(prize, code) {
     `Claim Code: ${code}`,
   ].join("\n");
 
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+  const number = WHATSAPP_NUMBER || "0";
+  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
 }
 
 function saveWin(prize, code) {
@@ -242,7 +273,14 @@ function getPrizeById(id) {
 }
 
 function pickRandomPrize() {
-  return PRIZES[Math.floor(Math.random() * PRIZES.length)];
+  const retryPrize = PRIZES.find((p) => p.isRetry);
+  const winnable = PRIZES.filter((p) => !p.isRetry);
+
+  if (Math.random() < RETRY_CHANCE) {
+    return retryPrize;
+  }
+
+  return winnable[Math.floor(Math.random() * winnable.length)];
 }
 
 function highlightCell(index) {
@@ -257,124 +295,162 @@ function clearHighlights() {
   });
 }
 
-function ensureConfettiCanvas() {
-  let canvas = document.getElementById("confetti-canvas");
-  if (!canvas) {
-    canvas = document.createElement("canvas");
-    canvas.id = "confetti-canvas";
-    canvas.className = "confetti-canvas";
-    canvas.setAttribute("aria-hidden", "true");
-    document.body.appendChild(canvas);
-  }
-  return canvas;
-}
-
 function stopConfetti() {
-  if (confettiFrame) {
-    cancelAnimationFrame(confettiFrame);
-    confettiFrame = null;
-  }
-  const canvas = document.getElementById("confetti-canvas");
-  if (canvas) {
-    const ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    canvas.style.display = "none";
+  if (confettiInterval) {
+    clearInterval(confettiInterval);
+    confettiInterval = null;
   }
 }
 
 function launchConfetti() {
-  const canvas = ensureConfettiCanvas();
-  const ctx = canvas.getContext("2d");
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  canvas.style.display = "block";
-
-  const colors = ["#facc15", "#fde047", "#ffffff", "#ef4444", "#22c55e", "#3b82f6"];
-  const particles = Array.from({ length: 120 }, () => ({
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height - canvas.height,
-    w: 6 + Math.random() * 6,
-    h: 10 + Math.random() * 8,
-    color: colors[Math.floor(Math.random() * colors.length)],
-    rotation: Math.random() * 360,
-    spin: (Math.random() - 0.5) * 12,
-    speedY: 2 + Math.random() * 4,
-    speedX: (Math.random() - 0.5) * 3,
-    opacity: 1,
-  }));
-
-  let frame = 0;
-  const maxFrames = 180;
-
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    frame++;
-
-    particles.forEach((p) => {
-      p.y += p.speedY;
-      p.x += p.speedX;
-      p.rotation += p.spin;
-      if (frame > maxFrames - 40) {
-        p.opacity = Math.max(0, p.opacity - 0.025);
-      }
-
-      ctx.save();
-      ctx.globalAlpha = p.opacity;
-      ctx.translate(p.x, p.y);
-      ctx.rotate((p.rotation * Math.PI) / 180);
-      ctx.fillStyle = p.color;
-      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-      ctx.restore();
-    });
-
-    if (frame < maxFrames) {
-      confettiFrame = requestAnimationFrame(draw);
-    } else {
-      stopConfetti();
-    }
-  }
+  if (typeof confetti !== "function") return;
 
   stopConfetti();
-  draw();
+
+  const colors = ["#facc15", "#fde047", "#ffffff", "#ef4444", "#22c55e", "#3b82f6"];
+
+  confetti({
+    particleCount: 120,
+    spread: 80,
+    startVelocity: 42,
+    origin: { y: 0.55 },
+    colors,
+    zIndex: 10001,
+  });
+
+  confetti({
+    particleCount: 60,
+    angle: 60,
+    spread: 55,
+    origin: { x: 0, y: 0.65 },
+    colors,
+    zIndex: 10001,
+  });
+
+  confetti({
+    particleCount: 60,
+    angle: 120,
+    spread: 55,
+    origin: { x: 1, y: 0.65 },
+    colors,
+    zIndex: 10001,
+  });
+
+  const duration = 2800;
+  const end = Date.now() + duration;
+
+  confettiInterval = setInterval(() => {
+    if (Date.now() >= end) {
+      stopConfetti();
+      return;
+    }
+
+    confetti({
+      particleCount: 18,
+      startVelocity: 26,
+      spread: 100,
+      ticks: 80,
+      origin: {
+        x: Math.random() * 0.6 + 0.2,
+        y: Math.random() * 0.35 + 0.15,
+      },
+      colors,
+      zIndex: 10001,
+    });
+  }, 220);
 }
 
-function showModal(prize, code, { withConfetti = false } = {}) {
-  modalImg.src = prize.image;
-  modalImg.alt = prize.name;
-  modalTitle.textContent = prize.name;
-  modalValue.textContent = prize.value;
+function resetSpinBoard() {
+  clearHighlights();
+  lastSpinWasRetry = false;
+}
 
-  if (prize.isRetry) {
-    stopConfetti();
-    modalCongrats.hidden = true;
-    modalSignature.hidden = true;
-    modalRetryMsg.hidden = false;
-    modalCodeBlock.hidden = true;
-    modalClaim.hidden = true;
-    modalRetryBtn.hidden = false;
-    modalValue.hidden = true;
-  } else {
-    modalCongrats.hidden = false;
-    modalSignature.hidden = false;
-    modalRetryMsg.hidden = true;
-    modalCodeBlock.hidden = false;
-    modalClaim.hidden = false;
-    modalRetryBtn.hidden = true;
-    modalValue.hidden = false;
-    modalCode.textContent = code;
-    modalClaim.href = buildWhatsAppUrl(prize, code);
-    if (withConfetti) launchConfetti();
-  }
+function closeModalOnly() {
+  modalOverlay.hidden = true;
+  document.body.style.overflow = "";
+  stopConfetti();
+  modalDialog?.classList.remove("modal--retry");
+  if (modalRetryView) modalRetryView.hidden = true;
+  if (modalWinView) modalWinView.hidden = false;
+}
 
+function restartSpinFromModal() {
+  clearWin();
+  resetSpinBoard();
+  closeModalOnly();
+
+  document.getElementById("spin-section")?.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+  });
+
+  setTimeout(() => {
+    if (!isSpinning) handleSpin();
+  }, 400);
+}
+
+function openModalOverlay() {
   modalOverlay.hidden = false;
   document.body.style.overflow = "hidden";
 }
 
-function hideModal() {
-  modalOverlay.hidden = true;
-  document.body.style.overflow = "";
+function showRetryModal() {
+  lastSpinWasRetry = true;
   stopConfetti();
-  resetSpinBtnAfterModal();
+
+  modalDialog?.classList.add("modal--retry");
+  modalWinView.hidden = true;
+  modalRetryView.hidden = false;
+
+  if (modalTitle) modalTitle.id = "modal-retry-heading";
+
+  openModalOverlay();
+}
+
+function showWinModal(prize, code, { withConfetti = false } = {}) {
+  lastSpinWasRetry = false;
+
+  modalDialog?.classList.remove("modal--retry");
+  modalRetryView.hidden = true;
+  modalWinView.hidden = false;
+
+  if (modalTitle) modalTitle.id = "modal-title";
+
+  modalImg.src = prize.image;
+  modalImg.alt = prize.name;
+  modalTitle.textContent = prize.name;
+  modalValue.textContent = prize.value;
+  modalCode.textContent = code;
+  modalClaim.href = buildWhatsAppUrl(prize, code);
+
+  openModalOverlay();
+
+  if (withConfetti) {
+    requestAnimationFrame(() => {
+      setTimeout(launchConfetti, 80);
+    });
+  }
+}
+
+function showModal(prize, code, options = {}) {
+  if (prize.isRetry) {
+    showRetryModal();
+  } else {
+    showWinModal(prize, code, options);
+  }
+}
+
+function hideModal({ keepSpinBoard = false } = {}) {
+  const wasRetry = lastSpinWasRetry;
+
+  closeModalOnly();
+
+  if (!keepSpinBoard && wasRetry && !loadWin()) {
+    resetSpinBoard();
+  }
+
+  updateMainSpinButton();
+  updateSpinDisclaimer();
 }
 
 function restoreSavedWin() {
@@ -386,8 +462,8 @@ function restoreSavedWin() {
   if (idx >= 0) spinCells[idx]?.classList.add("is-winner");
 
   hasSpunOnce = true;
-  btnSpin.disabled = true;
-  setSpinBtnLabel("Prize claimed — check WhatsApp");
+  updateSpinDisclaimer();
+  updateMainSpinButton();
   showModal(
     { ...prize, image: saved.image || prize.image },
     saved.code,
@@ -421,15 +497,22 @@ function runSpinAnimation(targetIndex) {
 }
 
 async function handleSpin() {
-  if (isSpinning || btnSpin.disabled) return;
+  if (isSpinning) return;
+
+  if (modalOverlay && !modalOverlay.hidden) {
+    closeModalOnly();
+  }
+
   if (loadWin()) {
-    restoreSavedWin();
-    return;
+    clearWin();
+    resetSpinBoard();
+  } else if (lastSpinWasRetry) {
+    resetSpinBoard();
   }
 
   isSpinning = true;
   btnSpin.disabled = true;
-  setSpinBtnLabel("Arrow is turning", true);
+  setSpinBtnLabel("Arrow is turning…", true);
   clearHighlights();
 
   const winner = pickRandomPrize();
@@ -438,27 +521,25 @@ async function handleSpin() {
 
   await runSpinAnimation(targetIndex);
 
-  hasSpunOnce = true;
+  markFirstSpinComplete();
   btnSpin.classList.remove("is-spinning");
+  isSpinning = false;
 
   if (winner.isRetry) {
-    isSpinning = false;
-    btnSpin.disabled = false;
-    setSpinBtnLabel("Spin again! Elon has more to give away!");
     showModal(winner, null);
+    updateMainSpinButton();
     return;
   }
 
   saveWin(winner, code);
-  isSpinning = false;
-  btnSpin.disabled = true;
-  setSpinBtnLabel("Prize claimed — check WhatsApp");
   showModal(winner, code, { withConfetti: true });
+  updateMainSpinButton();
 }
 
 function init() {
   renderSpinGrid();
-  setSpinBtnLabel("SPIN NOW");
+  setSpinBtnLabel(SPIN_NOW_LABEL);
+  btnSpin.disabled = false;
 
   btnSpin?.addEventListener("click", handleSpin);
 
@@ -479,8 +560,13 @@ function init() {
   modalRetryBtn?.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    hideModal();
-    clearHighlights();
+    restartSpinFromModal();
+  });
+
+  modalRetryWinBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    restartSpinFromModal();
   });
 
   document.addEventListener("keydown", (e) => {
