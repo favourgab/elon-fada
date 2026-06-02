@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Elon Musk RewardRush — Tesla Giveaway</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="page-bg" aria-hidden="true"></div>
+
+  <main class="page">
+    <!-- Hero -->
+    <section class="hero">
+      <p class="hero-badge">
+        <span class="badge-icon">⚡</span>
+        OFFICIAL TESLA GIVEAWAY
+        <span class="badge-icon">⚡</span>
+      </p>
+      <p class="event-brand">🚀 ELON MUSK REWARDRUSH 🚀</p>
+      <p class="event-sponsor">Official Event · Sponsored by Tesla Inc.</p>
+
+      <div class="profile-wrap">
+        <img src="assets/ppf.jpg" alt="Elon Musk" class="profile-img" width="120" height="120" />
+      </div>
+
+      <h1 class="hero-title shimmer">Spin. Win Big.</h1>
+      <p class="elon-quote">"The future is electric. Spin and win your reward" — Elon Musk.</p>
+      <!-- <button type="button" class="btn btn-primary btn-hero" id="btn-scroll-spin"> -->
+      <!-- <span class="btn-icon" aria-hidden="true">▷</span> SPIN TO WIN -->
+      <!-- </button> -->
+
+      <div class="stats-bar">
+        <div class="stat">
+          <span class="stat-value" id="winnerCount" data-target="2400">0</span>          
+          <span class="stat-label">Winners</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span class="stat-value" id="prizeCount" data-target="4200000">$0</span>          
+          <span class="stat-label">Prizes Given</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat">
+          <span class="stat-value" id="verifiedCount" data-target="100">0%</span>
+          <span class="stat-label">Verified</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Spin game -->
+    <section class="spin-section" id="spin-section" aria-labelledby="spin-heading">
+      <div class="spin-panel">
+        <p class="spin-tag">INTERACTIVE</p>
+        <h2 id="spin-heading" class="spin-title">Your Turn to Spin</h2>
+        <p class="spin-desc">Watch the prizes fly, your winner lights up in gold.</p>
+
+        <div class="spin-game">
+          <div class="selector" aria-hidden="true"></div>
+          <div class="prize-grid spin-grid" id="spin-grid"></div>
+        </div>
+
+        <button type="button" class="btn btn-primary btn-spin" id="btn-spin">
+          <span class="btn-icon spin-icon" aria-hidden="true">↻</span> SPIN NOW
+        </button>
+        <p class="spin-disclaimer">Free to play · No purchase required</p>
+      </div>
+
+      <div class="promo-box">
+        <p class="promo-box__text">
+          🔥Official Tesla Giveaway by Elon Musk · <strong>83% Win Rate</strong> · Spin to win!🔥
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p class="footer-copy">© 2026 Tesla Giveaway · Official Event · All prizes verified</p>
+  </footer>
+
+  <!-- Win modal -->
+  <canvas id="confetti-canvas" class="confetti-canvas" aria-hidden="true"></canvas>
+  <div class="modal-overlay" id="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button type="button" class="modal-close" id="modal-close" aria-label="Close">&times;</button>
+      <p class="modal-congrats" id="modal-congrats" hidden>Congratulations!</p>
+      <div class="modal-prize-img-wrap">
+        <img id="modal-img" src="" alt="" class="modal-prize-img" />
+      </div>
+      <h3 id="modal-title" class="modal-title"></h3>
+      <p id="modal-value" class="modal-value"></p>
+      <p id="modal-retry-msg" class="modal-retry-msg" hidden>Better luck next time. Come back and try again!</p>
+      <div id="modal-code-block" class="modal-code-block">
+        <p class="modal-code-label">Your claim code</p>
+        <p id="modal-code" class="modal-code"></p>
+      </div>
+      <div class="modal-signature" id="modal-signature" hidden>
+        <img src="assets/ppf.jpg" alt="Elon Musk" class="modal-signature__img" width="36" height="36" />
+        <p class="modal-signature__text">Signed by Elon Musk · Tesla CEO</p>
+      </div>
+      <a id="modal-claim" class="btn btn-primary btn-claim" href="#" target="_blank" rel="noopener noreferrer">
+        Claim on WhatsApp
+      </a>
+      <button type="button" id="modal-retry-btn" class="btn btn-secondary" hidden>Try Again</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
